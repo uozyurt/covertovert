@@ -23,8 +23,7 @@ class MyCovertChannel(CovertChannelBase):
         max_length : int,
         min_length : int,
         bits_per_packet : int,
-        sleep_between_packets : float = 0.000001,
-        sleep_between_packet_number_info_and_actual_message : float = 0.001,
+        sleep_between_packets : float = 0.1,
         randomize_borders : str = "True",
         randomize_interval_order : str = "True",
         random_seed : int = 42,
@@ -62,7 +61,7 @@ class MyCovertChannel(CovertChannelBase):
         randomize_interval_order = randomize_interval_order == "True"
 
         binary_message = self.generate_random_binary_message_with_logging(
-            log_file_name = log_file_name,
+            log_file_name = log_file_name ,
             min_length = min_length,
             max_length = max_length
         )
@@ -91,41 +90,6 @@ class MyCovertChannel(CovertChannelBase):
             end_time_init = time.time()
             print(f"Initialization time: {(end_time_init - start_time_init) * 1000} ms")
 
-        
-        # store the packets to indicate number of packets to send
-        packets_to_inform_number_of_packets_to_send = []
-
-        # calculate the number of packets to send
-        number_of_packets_to_send = math.ceil(len(binary_message_padded) / bits_per_packet)
-
-        # convert the number of packets to binary (32 bit integer value)
-        number_of_packets_to_send_binary = self.convert_integer_to_binary_string(number_of_packets_to_send, 32)
-
-        print(f"Number of packets to send binary:        {number_of_packets_to_send_binary}")
-        # apply padding if necessary
-        number_of_packets_to_send_binary_padded = number_of_packets_to_send_binary + "0" * (number_of_packets_to_send*(bits_per_packet) % 32)
-        print(f"Number of packets to send binary padded: {number_of_packets_to_send_binary_padded}")
-
-        print(len(number_of_packets_to_send_binary), len(number_of_packets_to_send_binary_padded))
-        # iterate over the binary number of packets to send and send each bit as a UDP packet
-        for i in range(0, len(number_of_packets_to_send_binary_padded), bits_per_packet):
-            # get the bits
-            bits = number_of_packets_to_send_binary_padded[i:i+bits_per_packet]
-
-            # define the source port number
-            src_port = self.get_source_port_encrypted(bits)
-
-            # define the UDP packet
-            udp_packet = scapy.all.UDP(sport = src_port, dport = dst_port)
-
-            # add the packet to list
-            packets_to_inform_number_of_packets_to_send.append(ip_packet/udp_packet)
-
-
-
-        # store packets to send for better timing
-        packets_to_send = []
-
         # iterate over the binary message and send each bit as a UDP packet
         for i in range(0, len(binary_message_padded), bits_per_packet):
             # get the bits
@@ -135,53 +99,17 @@ class MyCovertChannel(CovertChannelBase):
             src_port = self.get_source_port_encrypted(bits)
 
             # define the UDP packet
-            udp_packet = scapy.all.UDP(sport = src_port, dport = dst_port)
+            udp_packet = scapy.all.TCP(sport = src_port, dport = dst_port)
 
-            # add the packet to list
-            packets_to_send.append(ip_packet/udp_packet)
+            # send the packet (use the send function from the base class, not the scapy send function or this send function)
+            super().send(ip_packet/udp_packet)
 
-        # FIRST PLACE I SENT ANY PACKET
-        if verbose >= 0:
-            timer_start_all_packets = time.perf_counter()
-
-        # first send the packets to inform the number of packets to send
-        for current_packet_to_send in packets_to_inform_number_of_packets_to_send:
-            # send the packet
-            super().send(current_packet_to_send)
 
             if verbose >= 2:
-                print(f"Sent packet number information bits: {current_packet_to_send[scapy.all.UDP].sport} with source port: {current_packet_to_send[scapy.all.UDP].sport}")
+                print(f"Sent bits: {bits} with source port: {src_port}")
+                
 
             time.sleep(sleep_between_packets)
-
-
-        # sleep for a while to separate the packets
-        time.sleep(sleep_between_packet_number_info_and_actual_message)
-
-        # then send the packets to send the message
-        for current_packet_to_send in packets_to_send:
-            # send the packet
-            super().send(current_packet_to_send)
-
-            if verbose >= 2:
-                print(f"Sent bits: {current_packet_to_send[scapy.all.UDP].sport} with source port: {current_packet_to_send[scapy.all.UDP].sport}")
-
-            time.sleep(sleep_between_packets)
-        
-        # LAST PLACE I SENT ANY PACKET
-        if verbose >= 0:
-            timer_end_all_packets = time.perf_counter()
-
-            seconds_passed = (timer_end_all_packets - timer_start_all_packets)
-
-            print(f"Total time to send all packets: {seconds_passed} seconds")
-
-            average_seconds_per_bit = seconds_passed / len(binary_message_padded)
-
-            print(f"Average seconds per bit: {average_seconds_per_bit*1000} ms")
-
-
-
         
         if verbose >= 2:
             print(f"Sent full message binary: {binary_message}")
@@ -196,6 +124,8 @@ class MyCovertChannel(CovertChannelBase):
     def receive(
         self,
         bits_per_packet : int,
+        timeout_tolerance : float = 0.04,
+        buffer_max_tolerance_bytes : int = 1000,
         randomize_borders : str = "True",
         randomize_interval_order : str = "True",
         random_seed : int = 42,
@@ -243,103 +173,136 @@ class MyCovertChannel(CovertChannelBase):
         # receive the packets and decode the message
         message = ""
 
-        bits_actual_message = ""
-        bits_buffer_for_packet_count_information = ""
+        bitcounter = 0
 
-        # calculate the needed packet count to encode a 32 bit integer
-        number_of_packets_to_send = math.ceil(32 / bits_per_packet)
+        bits_buffer = []
+
+        packet_buffer = []
+
+        bits_buffer_str = ""
 
         if verbose >= 1:
             end_time_init = time.time()
             print(f"Initialization time: {(end_time_init - start_time_init) * 1000} ms")
             print("Receiving...")
 
-        # indefinitely wait for "number_of_packets_to_send" packets
-        packets_for_number_of_packets_information = scapy.all.sniff(
-            count = number_of_packets_to_send,
-            filter = f"udp and dst port {dst_port}"
-        )
+        # declare the timeout flag
+        timeout_flag = False
 
-        if verbose >= 1:
-            timer_start_between_packet_info_and_actual_message = time.time()
+        # calculate the buffer max tolerance in bits
+        buffer_max_tolerance = buffer_max_tolerance_bytes * 8
 
-        if verbose >= 2:
-            print(f"Received {number_of_packets_to_send} packets for number of packets information")
+        while True:
+            
+            # check if a full byte is received
+            if (timeout_flag):
+                # if the time since the not enough time passed since the last packet arrival (4 times the sleep time)
+                pass # do not receive the next input, try to process if there is any packet in the buffer
+            else:
+                # sniff the packets
+                packets = scapy.all.sniff(filter=f"tcp and dst port {dst_port}", count=1, timeout=timeout_tolerance)
 
-        # iterate over the packets to extract the bits
-        for current_packet in packets_for_number_of_packets_information:
-            # get the source port
-            src_port = current_packet[scapy.all.UDP].sport
+                if verbose >= 2:
+                    print(f"type:{type(packets)}, packets: {packets}")
 
-            # get the bits
-            bits = self.get_decrypted_message_from_encrypted_source_port(src_port)
+                if len(packets) == 0:
+                    # if no packet is received (timeout)
 
-            # add the bits to the buffer
-            bits_buffer_for_packet_count_information += bits
+                    # set the timeout flag
+                    timeout_flag = True
 
-            if verbose >= 2:
-                print(f"Received packet count information bits: {bits} with source port: {src_port}")
+                    # continue to the next iteration
+                    continue
+                
+                packet_buffer.append(packets[0])
 
-        if verbose >= 2:
-            print(f"Received number of packets to receive binary: {bits_buffer_for_packet_count_information}")
+                continue
+            
 
-        # convert the message to a 32 bit integer
-        number_of_packets_to_receive = int(bits_buffer_for_packet_count_information, 2)
+            
 
-        if verbose >= 2:
-            print(f"Received number of packets to receive: {number_of_packets_to_receive}")
-        
+            
+            # if the buffer is not empty, process the packets
+            while len(packet_buffer) > 0:
+                if verbose >= 1:
+                    timer_start_receive = time.time()
 
-        if verbose >= 1:
-            timer_end_between_packet_info_and_actual_message = time.time()
-            print(f"Time between packet count information and actual message: {(timer_end_between_packet_info_and_actual_message - timer_start_between_packet_info_and_actual_message) * 1000} ms")
-        
-        # indefinitely wait for "number_of_packets_to_receive" packets
-        packets = scapy.all.sniff(
-            count = number_of_packets_to_receive,
-            filter = f"udp and dst port {dst_port}"
-        )
-
-
-
-        # iterate over the packets to extract the bits
-        for current_packet in packets:
-            # get the source port
-            src_port = current_packet[scapy.all.UDP].sport
-
-            # get the bits
-            bits = self.get_decrypted_message_from_encrypted_source_port(src_port)
-
-            if verbose >= 2:
-                print(f"Received bits: {bits} with source port: {src_port}")
-
-            # add the bits to the buffer
-            bits_actual_message += bits
+                # get the source port number
+                src_port = packet_buffer.pop(0)[scapy.all.TCP].sport
+                if verbose >= 1:
+                    timer_end_get_src_port = time.time()
+                    print(f"Get src port time: {(timer_end_get_src_port - timer_start_receive) * 1000} ms")
 
 
-        # iterate over the bits and convert them to characters
-        for i in range(0, len(bits_actual_message), 8):
-            current_character = self.convert_eight_bits_to_character(bits_actual_message[i:i+8])
+                # decrypt the message and add it to the buffer
+                bits_buffer.append(self.get_decrypted_message_from_encrypted_source_port(src_port))
+                if verbose >= 1:
+                    timer_end_decrypt = time.time()
+                    print(f"Decrypt time: {(timer_end_decrypt - timer_end_get_src_port) * 1000} ms")
 
-            if verbose >= 2:
-                print(f"Current character: {current_character}")
+                # increment the counter
+                bitcounter += bits_per_packet
+
+                if verbose >= 1:
+                    timer_end_receive = time.time()
+                    print(f"Write to buffer time: {(timer_end_receive - timer_start_receive) * 1000} ms")
+
+                if verbose >= 2:
+                    print(f"Received bits: {bits_buffer[-bits_per_packet:]} with source port: {src_port}")
+                    print(f"New buffer: {bits_buffer}\n")
+
+
+            # check if enough bits are received (at least 8 bits)
+            if bitcounter < 8:
+                # reset the timeout flag
+                timeout_flag = False
+                # continue to the next iteration
+                continue
+
+            if verbose >= 1:
+                timer_start_process = time.time()
+                
+            # convert the buffer to a string
+            if len(bits_buffer) > 0:
+                # convert the buffer to a string
+                bits_buffer_str += "".join(bits_buffer)
+
+                # clear the buffer
+                bits_buffer = []
+
+            # convert the message to a character
+            current_byte, bits_buffer_str = self.convert_eight_bits_to_character(bits_buffer_str[:8]), bits_buffer_str[8:]
+
 
             # check if the communication is finished
-            if current_character == ".":
+            if current_byte == ".":
                 if verbose >= 2:
                     print("\n\nCommunication finished (received \".\")\n\n")
-                    break
+                break
 
             # add the character to the message
-            message += current_character
-        
-        if verbose >= 2:
-            print(f"Received full message binary: {bits_actual_message}")
-            print(f"Received full message characters: \"{message}\"")
+            message += current_byte
+
+            # decrement the counter
+            bitcounter -= 8
+
+
+            if verbose >= 1:
+                timer_end_process = time.time()
+                print(f"Process time: {(timer_end_process - timer_start_process) * 1000} ms")
+
+            if verbose >= 2:
+                print(f"Received character: {current_byte}")
+                print(f"New buffer: {bits_buffer_str}\n")
+            
+
+        if verbose >= 1:
+            print(f"Received full message: \"{message}\"")
+
 
         self.log_message(message, log_file_name)
         
-        
+
 
     def convert_integer_to_binary_string(
         self,
@@ -445,7 +408,7 @@ class MyCovertChannel(CovertChannelBase):
                 interval = 0
 
                 # stop the search when the interval is found
-                if i >= src_port_interval_borders[unrandomized_interval+1]:
+                if i > src_port_interval_borders[unrandomized_interval+1]:
                     unrandomized_interval += 1
                 
                 
@@ -460,6 +423,7 @@ class MyCovertChannel(CovertChannelBase):
                     # print every 1000th source port value for verbosing
                     if i % 1000 == 0:
                         print(f"{i} ---> {self.convert_integer_to_binary_string(interval, bits_per_packet)}")
+                    
 
                 # add the source port value and the corresponding bits to the hashmap
                 self.source_port_value_to_bits.append(self.convert_integer_to_binary_string(interval, bits_per_packet))
@@ -471,7 +435,7 @@ class MyCovertChannel(CovertChannelBase):
         bit : str
     ):
         # this function assumes init_intervals is called before this function with sender_receiver_type = 0 or 2
-        return random.randint(self.bits_to_source_port_value_interval[bit][0], self.bits_to_source_port_value_interval[bit][1]-1)
+        return random.randint(self.bits_to_source_port_value_interval[bit][0], self.bits_to_source_port_value_interval[bit][1])
     
     def get_decrypted_message_from_encrypted_source_port(
         self,

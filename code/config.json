@@ -1,18 +1,30 @@
 {
-  "covert_channel_code": "Replace it with the [Code] of chosen covert channel type seen in ODTUClass.",
+  "covert_channel_code": "CSC-PSV-UDP-SP",
   "send": {
     "parameters": {
-      "parameter1": "p1",
-      "parameter2": 1234,
-      "log_file_name": "Example_UDPTimingInterarrivalChannelSender.log"
+      "max_length" : 16,
+      "min_length" : 16,
+      "bits_per_packet" : 8,
+      "sleep_between_packets" : 0.000001,
+      "sleep_between_packet_number_info_and_actual_message" : 0.001,
+      "randomize_borders" : "True",
+      "randomize_interval_order" : "True",
+      "random_seed" : 42,
+      "verbose" : 0,
+      "log_file_name" : "Example_UDPTimingInterarrivalChannelSender.log",
+      "dst_port": 42424,
+      "receiver_ip_address": "172.18.0.3"
     }
   },
   "receive": {
     "parameters": {
-      "parameter1": "p1",
-      "parameter2": 1234,
-      "parameter3": "p3",
-      "log_file_name": "Example_UDPTimingInterarrivalChannelReceiver.log"
+      "bits_per_packet": 8,
+      "randomize_borders": "True",
+      "randomize_interval_order": "True",
+      "random_seed": 42,
+      "verbose": 0,
+      "log_file_name": "Example_UDPTimingInterarrivalChannelReceiver.log",
+      "dst_port": 42424
     }
   }
 }
