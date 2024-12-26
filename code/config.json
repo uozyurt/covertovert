@@ -2,29 +2,35 @@
   "covert_channel_code": "CSC-PSV-UDP-SP",
   "send": {
     "parameters": {
-      "max_length" : 16,
-      "min_length" : 16,
-      "bits_per_packet" : 8,
-      "sleep_between_packets" : 0.000001,
-      "sleep_between_packet_number_info_and_actual_message" : 0.001,
-      "randomize_borders" : "True",
-      "randomize_interval_order" : "True",
-      "random_seed" : 42,
-      "verbose" : 0,
-      "log_file_name" : "Example_UDPTimingInterarrivalChannelSender.log",
-      "dst_port": 42424,
-      "receiver_ip_address": "172.18.0.3"
+      "bits_per_packet"                                    : 16,
+      "integer_bit_size_to_inform_packet_count"            : 32,
+      "randomize_borders"                                  : "True",
+      "randomize_interval_order"                           : "True",
+      "use_additional_dynamic_shifting"                    : "True",
+      "dst_port"                                           : 42424,
+      "random_seed"                                        : 42,
+      "verbose"                                            : 1,
+      "log_file_name"                                      : "Example_UDPTimingInterarrivalChannelSender.log",
+      "store_packets_prior_to_sending"                     : "True",
+      "sleep_between_packets"                              : 0.000001,
+      "sleep_between_packet_number_info_and_actual_message": 0.05,
+      "max_length"                                         : 56,
+      "min_length"                                         : 23,
+      "receiver_ip_address"                                : "172.18.0.3"
     }
   },
   "receive": {
     "parameters": {
-      "bits_per_packet": 8,
-      "randomize_borders": "True",
-      "randomize_interval_order": "True",
-      "random_seed": 42,
-      "verbose": 0,
-      "log_file_name": "Example_UDPTimingInterarrivalChannelReceiver.log",
-      "dst_port": 42424
+      "bits_per_packet"                        : 16,
+      "integer_bit_size_to_inform_packet_count": 32,
+      "randomize_borders"                      : "True",
+      "randomize_interval_order"               : "True",
+      "use_additional_dynamic_shifting"        : "True",
+      "dst_port"                               : 42424,
+      "random_seed"                            : 42,
+      "verbose"                                : 1,
+      "log_file_name"                          : "Example_UDPTimingInterarrivalChannelReceiver.log",
+      "cache_type_source_port_value_to_bits"   : 1
     }
   }
 }

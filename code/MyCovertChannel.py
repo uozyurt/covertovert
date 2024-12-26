@@ -27,9 +27,9 @@ class MyCovertChannel(CovertChannelBase):
         randomize_interval_order                           : str = "True",
         use_additional_dynamic_shifting                    : str = "True",
         random_seed                                        : int = 42,
-        verbose                                            : int = 0,
+        verbose                                            : int = 1,
         store_packets_prior_to_sending                     : str = "True",
-        integer_bit_size_to_inform_packet_count            : int= 32,
+        integer_bit_size_to_inform_packet_count            : int = 32,
         log_file_name                                      : str = "Example_UDPTimingInterarrivalChannelSender.log",
         dst_port                                           : int = 42424,
         receiver_ip_address                                : str = "172.18.0.3",
@@ -240,7 +240,7 @@ class MyCovertChannel(CovertChannelBase):
                 if verbose >= 2:
                     print(f"Sent packet number with source port: {current_packet_to_send[scapy.all.UDP].sport}")
 
-                time.sleep(sleep_between_packets)
+                #time.sleep(sleep_between_packets)
 
 
             # sleep for a while to separate the packets
@@ -254,7 +254,7 @@ class MyCovertChannel(CovertChannelBase):
                 if verbose >= 2:
                     print(f"Sent with source port: {current_packet_to_send[scapy.all.UDP].sport}")
 
-                time.sleep(sleep_between_packets)
+                #time.sleep(sleep_between_packets)
         else:
             # send packets just after creating them
 
@@ -339,7 +339,7 @@ class MyCovertChannel(CovertChannelBase):
         use_additional_dynamic_shifting        : str = "True",
         cache_type_source_port_value_to_bits   : int = 1,
         random_seed                            : int = 42,
-        verbose                                : int = 0,
+        verbose                                : int = 1,
         integer_bit_size_to_inform_packet_count: int = 32,
         log_file_name                          : str = "Example_UDPTimingInterarrivalChannelReceiver.log",
         dst_port                               : int = 42424,
