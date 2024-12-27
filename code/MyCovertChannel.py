@@ -3,15 +3,13 @@ import scapy
 import random
 import time
 import math
+import threading
 
 class MyCovertChannel(CovertChannelBase):
 
     def __init__(self):
         # no need to initialize the base class since it is empty
-
-        # declare if random seed set and intervals decided flag
-        self.random_seed_and_intervals_set_send    = False
-        self.random_seed_and_intervals_set_receive = False
+        pass
 
 
 
@@ -22,14 +20,12 @@ class MyCovertChannel(CovertChannelBase):
         min_length                                         : int,
         bits_per_packet                                    : int,
         sleep_between_packets                              : float = 0.000001,
-        sleep_between_packet_number_info_and_actual_message: float = 0.05,
         randomize_borders                                  : str = "True",
         randomize_interval_order                           : str = "True",
         use_additional_dynamic_shifting                    : str = "True",
         random_seed                                        : int = 42,
         verbose                                            : int = 1,
         store_packets_prior_to_sending                     : str = "True",
-        integer_bit_size_to_inform_packet_count            : int = 32,
         log_file_name                                      : str = "Example_UDPTimingInterarrivalChannelSender.log",
         dst_port                                           : int = 42424,
         receiver_ip_address                                : str = "172.18.0.3",
@@ -52,9 +48,6 @@ class MyCovertChannel(CovertChannelBase):
         -  Explanation                                     : The time to sleep between sending each packet. It is used to separate the packets in time.
         -- warning                                         : too low values may cause packet loss
 
-        -  sleep_between_packet_number_info_and_actual_message (float) (default=0.001): the time to sleep between sending the packet number information and the actual message
-        -  Explanation                                                                : The time to sleep between sending the packet number information and the actual message. It is used to separate the packets in time and give the receiver time to process the packet number information.
-        -- warning                                                                    : too low values may cause infinte waiting time for the receiver if initial packets after packet number information are lost.
 
         - randomize_borders (str) (default="True"): whether to randomize the borders of the intervals
         - Explanation                             : If True, the border values of the intervals are randomized. If False, the borders are uniformly distributed.
@@ -77,10 +70,6 @@ class MyCovertChannel(CovertChannelBase):
         -  store_packets_prior_to_sending (str) (default="False"): whether to store the packets prior to sending
         -  Explanation                                           : If True, the packets are stored in a list before sending. If False, the packets are created just before sending.
         -- warning                                               : Storing packets may require additional memory. For large messages, it may consume a lot of memory and cause a wait time before sending the packets.
-
-        -  integer_bit_size_to_inform_packet_count (int) (default=32): the number of bits to encode the number of packets to send
-        -  Explanation                                               : The number of bits to encode the number of packets to send. Larger values increase the capacity of the covert channel, but tightens the intervals.
-        -- restrictions                                              : integer_bit_size_to_inform_packet_count >= math.ceil(math.log2(max_length) + 3 -  math.log2(bits_per_packet))
 
         - log_file_name (str) (default="Example_UDPTimingInterarrivalChannelSender.log"): the name of the log file to log the sent message
         - Explanation                                                                   : The log file of the sent message will be stored in this file.
@@ -113,8 +102,6 @@ class MyCovertChannel(CovertChannelBase):
 
         assert store_packets_prior_to_sending == "True" or store_packets_prior_to_sending == "False", "store_packets_prior_to_sending must be either True or False as a string"
 
-        assert (integer_bit_size_to_inform_packet_count) >= math.ceil(math.log2(max_length) + 3 -  math.log2(bits_per_packet)), f"2^integer_bit_size_to_inform_packet_count must be bigger than or equal to the number of packets to send (math.ceil(math.log2(max_length) + 3 -  math.log2(bits_per_packet))) ####### Error: {integer_bit_size_to_inform_packet_count} < {math.ceil(math.log2(max_length) + 3 -  math.log2(bits_per_packet))}"
-
 
         assert verbose >= 0 or verbose >= 1 or verbose >= 2 or verbose >= 3, "verbose must be 0, 1, 2 or 3"
 
@@ -140,6 +127,10 @@ class MyCovertChannel(CovertChannelBase):
         # set use_additional_dynamic_shifting and bits_per_packet as class variables
         self.use_additional_dynamic_shifting = use_additional_dynamic_shifting
         self.bits_per_packet = bits_per_packet
+        self.verbose = verbose
+        self.random_seed = random_seed
+        self.randomize_borders = randomize_borders
+        self.randomize_interval_order = randomize_interval_order
 
         # if additional dynamic shifting is used, use a packet counter
         if use_additional_dynamic_shifting:
@@ -153,17 +144,10 @@ class MyCovertChannel(CovertChannelBase):
         )
 
         # initialize the intervals
-        if not self.random_seed_and_intervals_set_send:
-            self.init_intervals(
-                bits_per_packet          = bits_per_packet,
-                random_seed              = random_seed,
-                sender_receiver_type     = 0,
-                randomize_borders        = randomize_borders,
-                randomize_interval_order = randomize_interval_order,
-                verbose                  = verbose
-            )
+        self.init_intervals(
+            sender_receiver_type = 0
+        )
 
-            self.random_seed_and_intervals_set_send = True
         
         # if binary message is not divisible by bits_per_packet, pad with zeros
         if len(binary_message) % bits_per_packet != 0:
@@ -176,40 +160,10 @@ class MyCovertChannel(CovertChannelBase):
             end_time_init = time.time()
             print(f"Initialization time: {(end_time_init - start_time_init) * 1000} ms")
 
-        
 
-        # calculate the number of packets to send
-        number_of_packets_to_send = math.ceil(len(binary_message_padded) / bits_per_packet)
-
-        # convert the number of packets to binary (integer_bit_size_to_inform_packet_count bit integer value)
-        number_of_packets_to_send_binary = self.convert_integer_to_binary_string(number_of_packets_to_send, integer_bit_size_to_inform_packet_count)
-
-        # apply padding if necessary
-        if len(number_of_packets_to_send_binary) % bits_per_packet != 0:
-            number_of_packets_to_send_binary_padded = number_of_packets_to_send_binary + "0" * (bits_per_packet - (integer_bit_size_to_inform_packet_count % bits_per_packet))
-        else:
-            number_of_packets_to_send_binary_padded = number_of_packets_to_send_binary
 
         if store_packets_prior_to_sending:
             # send packets after creating all of them
-
-            # store the packets to indicate number of packets to send
-            packets_to_inform_number_of_packets_to_send = []
-
-            # iterate over the binary number of packets to send and send each bit as a UDP packet
-            for i in range(0, len(number_of_packets_to_send_binary_padded), bits_per_packet):
-                # get the bits
-                bits = number_of_packets_to_send_binary_padded[i:i+bits_per_packet]
-
-                # define the source port number
-                src_port = self.get_source_port_encrypted(bits)
-
-                # define the UDP packet
-                udp_packet = scapy.all.UDP(sport = src_port, dport = dst_port)
-
-                # add the packet to list
-                packets_to_inform_number_of_packets_to_send.append(ip_packet/udp_packet)
-
 
             # store packets to send for better timing
             packets_to_send = []
@@ -232,19 +186,6 @@ class MyCovertChannel(CovertChannelBase):
             if verbose >= 0:
                 timer_start_all_packets = time.perf_counter()
 
-            # first send the packets to inform the number of packets to send
-            for current_packet_to_send in packets_to_inform_number_of_packets_to_send:
-                # send the packet
-                super().send(current_packet_to_send)
-
-                if verbose >= 2:
-                    print(f"Sent packet number with source port: {current_packet_to_send[scapy.all.UDP].sport}")
-
-                time.sleep(sleep_between_packets)
-
-
-            # sleep for a while to separate the packets
-            time.sleep(sleep_between_packet_number_info_and_actual_message)
 
             # then send the packets to send the message
             for current_packet_to_send in packets_to_send:
@@ -262,28 +203,7 @@ class MyCovertChannel(CovertChannelBase):
             if verbose >= 0:
                 timer_start_all_packets = time.perf_counter()
             
-
-            # first send the packets to inform the number of packets to send
-            for i in range(0, len(number_of_packets_to_send_binary_padded), bits_per_packet):
-                # get the bits
-                bits = number_of_packets_to_send_binary_padded[i:i+bits_per_packet]
-
-                # define the source port number
-                src_port = self.get_source_port_encrypted(bits)
-
-                # define the UDP packet
-                udp_packet = scapy.all.UDP(sport = src_port, dport = dst_port)
-
-                # send the packet
-                super().send(ip_packet/udp_packet)
-
-                if verbose >= 2:
-                    print(f"Sent packet number with source port: {src_port}")
-
-                time.sleep(sleep_between_packets)
             
-            # sleep for a while to separate the packets
-            time.sleep(sleep_between_packet_number_info_and_actual_message)
 
             # then send the packets to send the message
             for i in range(0, len(binary_message_padded), bits_per_packet):
@@ -340,7 +260,6 @@ class MyCovertChannel(CovertChannelBase):
         cache_type_source_port_value_to_bits   : int = 1,
         random_seed                            : int = 42,
         verbose                                : int = 1,
-        integer_bit_size_to_inform_packet_count: int = 32,
         log_file_name                          : str = "Example_UDPTimingInterarrivalChannelReceiver.log",
         dst_port                               : int = 42424,
     ):
@@ -382,6 +301,7 @@ class MyCovertChannel(CovertChannelBase):
         -  Explanation                   : The destination port to listen for the packets. (to avoid sniffing wrong packets accidentally)
         -- restrictions                  : 0 <= dst_port <= 65535
         """
+        
         if verbose >= 1:
             # start timer for initial time
             start_time_init = time.time()
@@ -408,138 +328,222 @@ class MyCovertChannel(CovertChannelBase):
         use_additional_dynamic_shifting = use_additional_dynamic_shifting == "True"
 
 
-        # set the dst port, verbose, bits per packet, cache type, use_additional_dynamic_shifting as class variables
-        self.dst_port                             = dst_port
-        self.verbose                              = verbose
-        self.bits_per_packet                      = bits_per_packet
+        # set the class variables
+        self.bits_per_packet = bits_per_packet
         self.cache_type_source_port_value_to_bits = cache_type_source_port_value_to_bits
-        self.use_additional_dynamic_shifting      = use_additional_dynamic_shifting
+        self.random_seed = random_seed
+        self.verbose = verbose
+        self.log_file_name = log_file_name
+        self.dst_port = dst_port
+        self.randomize_borders = randomize_borders
+        self.randomize_interval_order = randomize_interval_order
+        self.use_additional_dynamic_shifting = use_additional_dynamic_shifting
 
         # if additional dynamic shifting is used, use a packet counter
-        if use_additional_dynamic_shifting:
+        if self.use_additional_dynamic_shifting:
             self.packet_counter = 0
 
+        # Set shared state for each call
+        self.packets = []
+        self.last_read_packet_index = 0
+        self.bits_buffer = ""
+        self.bits_actual_message = ""
+        self.message = ""
 
+        # set the flag to stop function when "." is received
+        self.dot_character_not_received = True
 
-        # set if interval order is randomized
-        self.randomize_interval_order = randomize_interval_order
 
 
         # initialize the intervals
-        if not self.random_seed_and_intervals_set_receive:
-            self.init_intervals(
-                bits_per_packet                      = bits_per_packet,
-                random_seed                          = random_seed,
-                sender_receiver_type                 = 1,
-                randomize_borders                    = randomize_borders,
-                randomize_interval_order             = randomize_interval_order,
-                cache_type_source_port_value_to_bits = cache_type_source_port_value_to_bits,
-                verbose                              = verbose
-            )
+        self.init_intervals(
+            sender_receiver_type = 1
+        )
 
-            self.random_seed_and_intervals_set_receive = True
 
         # receive the packets and decode the message
-        message = ""
-        bits_actual_message = ""
-        bits_buffer_for_packet_count_information = ""
+        self.message = ""
+        self.bits_actual_message = ""
 
-        # calculate the needed packet count to encode a integer
-        number_of_packets_to_send = math.ceil(integer_bit_size_to_inform_packet_count / bits_per_packet)
 
         if verbose >= 1:
             end_time_init = time.time()
             print(f"Initialization time: {(end_time_init - start_time_init) * 1000} ms")
             print("Receiving...")
 
-        # indefinitely wait for "number_of_packets_to_send" packets
-        packets_for_number_of_packets_information = scapy.all.sniff(
-            count  = number_of_packets_to_send,
-            filter = f"udp and dst port {dst_port}"
+
+        if self.verbose >= 1:
+            print("Starting threads for sniffing and processing")
+
+        # create locks for shared variables
+        self.packets_lock = threading.Lock()
+        self.bits_buffer_lock = threading.Lock()
+
+        # create threads for sniffing, decoding and processing
+        sniff_thread = threading.Thread(
+            target=self.sniff_packets_threaded,
+            name="SniffThread",
+            daemon=True
         )
 
-        if verbose >= 1:
-            timer_start_between_packet_info_and_actual_message = time.time()
-
-        if verbose >= 2:
-            print(f"Received {number_of_packets_to_send} packets for number of packets information")
-
-        # iterate over the packets to extract the bits
-        for current_packet in packets_for_number_of_packets_information:
-            # get the source port
-            src_port = current_packet[scapy.all.UDP].sport
-
-            # get the bits
-            bits = self.get_decrypted_message_from_encrypted_source_port(src_port)
-
-            # add the bits to the buffer
-            bits_buffer_for_packet_count_information += bits
-
-            if verbose >= 2:
-                print(f"Received packet count information bits: {bits} with source port: {src_port}")
-
-        # clip the bits to the needed length
-        bits_buffer_for_packet_count_information = bits_buffer_for_packet_count_information[:integer_bit_size_to_inform_packet_count]
-
-        if verbose >= 2:
-            print(f"Received number of packets to receive binary: {bits_buffer_for_packet_count_information}")
-
-        # convert the message to bit integer
-        number_of_packets_to_receive = int(bits_buffer_for_packet_count_information, 2)
-
-        if verbose >= 2:
-            print(f"Received number of packets to receive: {number_of_packets_to_receive}")
-        
-
-        if verbose >= 1:
-            timer_end_between_packet_info_and_actual_message = time.time()
-            print(f"Time between packet count information and actual message: {(timer_end_between_packet_info_and_actual_message - timer_start_between_packet_info_and_actual_message) * 1000} ms")
-        
-        # indefinitely wait for "number_of_packets_to_receive" packets
-        packets = scapy.all.sniff(
-            count = number_of_packets_to_receive,
-            filter = f"udp and dst port {dst_port}"
+        decode_packet_to_bits_thread = threading.Thread(
+            target=self.decode_bits_from_packet_threaded,
+            name="DecodeThread",
+            daemon=True
         )
 
+        process_bits_thread = threading.Thread(
+            target=self.processing_thread_func,
+            name="ProcessThread",
+            daemon=True
+        )
+
+        sniff_thread.start()
+        decode_packet_to_bits_thread.start()
+        process_bits_thread.start()
+
+        sniff_thread.join()
+        decode_packet_to_bits_thread.join()
+        process_bits_thread.join()
+
+        if self.verbose >= 1:
+            print("Receiving finished.")
 
 
-        # iterate over the packets to extract the bits
-        for current_packet in packets:
-            # get the source port
-            src_port = current_packet[scapy.all.UDP].sport
-            # get the bits
-            bits = self.get_decrypted_message_from_encrypted_source_port(src_port)
-
-            if verbose >= 2:
-                print(f"Received bits: {bits} with source port: {src_port}")
-
-            # add the bits to the buffer
-            bits_actual_message += bits
 
 
-        # iterate over the bits and convert them to characters
-        for i in range(0, len(bits_actual_message), 8):
-            current_character = self.convert_eight_bits_to_character(bits_actual_message[i:i+8])
-
-            if verbose >= 2:
-                print(f"Current character: {current_character}")
 
 
-            # add the character to the message
-            message += current_character
+    def sniff_packets_threaded(
+        self
+    ):
+        """
+        Sniffs the packets on the destination port and stores them in the packets list.
+        """
+        if self.verbose >= 2:
+            print(f"Sniffing thread started.")
 
-            # check if the communication is finished
+        sniffer = scapy.all.AsyncSniffer(
+            filter=f"udp and dst port {self.dst_port}",
+            prn=self.handle_sniffed_packet,
+            store=0,
+            stop_filter=lambda x: not self.dot_character_not_received
+        )
+
+        sniffer.start()
+
+        while self.dot_character_not_received:
+            # avoid busy-wait
+            time.sleep(0.01)
+
+        sniffer.stop()
+
+        
+        if self.verbose >= 2:
+            print(f"Sniffing thread finished.")
+
+    def handle_sniffed_packet(
+        self,
+        pkt
+    ):
+        """
+        Scapy sniff packet handler. Pushes the packet to self.packets list.
+        """
+        with self.packets_lock:
+            self.packets.append(pkt)
+
+
+
+    def decode_bits_from_packet_threaded(
+        self
+    ):
+        """
+        Decodes the bits from the packets and stores them in the buffer.
+        """
+        if self.verbose >= 2:
+            print("Reading thread started.")
+
+        while self.dot_character_not_received:
+            new_packets = []
+
+            if self.last_read_packet_index < len(self.packets):
+                new_packets = self.packets[self.last_read_packet_index:]
+                self.last_read_packet_index = len(self.packets)
+
+            # Decode bits from each new packet
+            for current_packet in new_packets:
+                # get the source port
+                src_port = current_packet[scapy.all.UDP].sport
+
+                # get the bits
+                bits = self.get_decrypted_message_from_encrypted_source_port(src_port)
+
+                if self.verbose >= 2:
+                    print(f"Received bits: {bits} with source port: {src_port}")
+
+                # lock the buffer
+                with self.bits_buffer_lock:
+                    # add the bits to the buffer
+                    self.bits_actual_message += bits
+
+            time.sleep(0.01)  # avoid busy-wait
+
+        if self.verbose >= 2:
+            print("Reading thread finished.")
+
+
+
+    def processing_thread_func(
+        self
+    ):
+        """
+        Processes the bits in the buffer and stops communication when "." is received.
+        """
+        if self.verbose >= 2:
+            print("Processing thread started.")
+
+        while self.dot_character_not_received:
+            if len(self.bits_actual_message) < 8:
+                # avoid busy-wait
+                time.sleep(0.01)
+                continue
+
+            # lock the buffer
+            with self.bits_buffer_lock:
+                # process the buffer
+                current_character = self.convert_eight_bits_to_character(self.bits_actual_message[:8])
+
+                # remove the processed bits from the buffer
+                self.bits_actual_message = self.bits_actual_message[8:]
+
+                if self.verbose >= 2:
+                    print(f"Current character: {current_character}")
+
+                # add the character to the message
+                self.message += current_character
+
+
+
+
             if current_character == ".":
-                if verbose >= 2:
+                # We got our "." character, stop the communication
+                self.dot_character_not_received = False
+
+                if self.verbose >= 2:
                     print("\n\nCommunication finished (received \".\")\n\n")
-                    break
+                    print(f"Received full message binary: {self.bits_actual_message}")
+                    print(f"Received full message characters: \"{self.message}\"")
 
-        
-        if verbose >= 2:
-            print(f"Received full message binary: {bits_actual_message}")
-            print(f"Received full message characters: \"{message}\"")
+                # log the final received message
+                self.log_message(self.message, self.log_file_name)
 
-        self.log_message(message, log_file_name)
+                print("Processing thread finished.")
+            else:
+                # avoid busy-wait
+                time.sleep(0.01)
+
+                
+
         
         
 
@@ -553,64 +557,26 @@ class MyCovertChannel(CovertChannelBase):
         """
         return bin(number)[2:].zfill(length)
 
+
+
     def init_intervals(
         self,
-        bits_per_packet : int,
-        random_seed : int,
         sender_receiver_type : int,
-        randomize_borders : bool = True,
-        randomize_interval_order : bool = True,
-        cache_type_source_port_value_to_bits: int = 1,
-        verbose : int = 0
     ):
         """
         Initialize the intervals the mapping function between bits to encode and source port value intervals
 
         Parameters:
-        -  bits_per_packet (int): the number of bits to encode in a single packet
-        -  Explanation          : The number of bits to encode in a single packet. Larger values increase the capacity of the covert channel, but tightens the intervals.
-        -- restrictions         : 1 <= bits_per_packet <= 16
-
-        - random_seed (int): the random seed to use for randomizing the intervals
-        - Explanation      : The random seed to use for randomizing the borders of the intervals and the interval order.
-        
         -  sender_receiver_type (int): the type of the sender or receiver
         -  Explanation               : Initializes the intervals for the sender, receiver or both
         -- 0                         : sender
         -- 1                         : receiver
         -- 2                         : both
-
-        - randomize_borders (bool) (default=True): whether to randomize the borders of the intervals
-        - Explanation                            : If True, the border values of the intervals are randomized. If False, the borders are uniformly distributed.
-
-        - randomize_interval_order (bool) (default=True): whether to randomize the order of the intervals
-        - Explanation                                   : If True, the order of the intervals is randomized. If False, the order is kept as it is (form 0 to n-1).
-
-        -  verbose (int) (default=0): the verbosity level
-        -- 0                        : no verbosity
-        -- 1                        : print initialization time and most important information
-        -- 2                        : print all information
-        -- 3                        : print all information and the mapping between bits and intervals
-
-        -  cache_type_source_port_value_to_bits (int) (default=1): the data structure to use for caching the source port value to bits mapping
-        -- 0                                                     : no caching with O(n) time complexity in terms of number of intervals. Fastest initialization time, requires no additional memory, but slowest search time.
-        -- 1                                                     : binary search with O(log(n)) time complexity in terms of number of intervals. Balances memory and initialization time and search time.
-        -- 2                                                     : lookup table with O(1) time complexity in terms of number of intervals. Fastest search time, but requires significant memory and initialization time for large number of intervals.
         """
 
-        # check if the given parameters are valid
-        assert bits_per_packet > 0, "bits_per_packet must be bigger than 0"
-        assert bits_per_packet <= 16, "bits_per_packet must be smaller than or equal to 16"
 
-        assert sender_receiver_type == 0 or sender_receiver_type == 1 or sender_receiver_type == 2, "sender_receiver_type must be 0, 1 or 2"
-
-        assert verbose >= 0 or verbose >= 1 or verbose >= 2 or verbose >= 3, "verbose must be 0, 1, 2 or 3"
-
-
-
-
-        # calculate the number of intervals (2^bits_per_packet)
-        number_of_intervals = 2 ** bits_per_packet
+        # calculate the number of intervals (2^self.bits_per_packet)
+        number_of_intervals = 2 ** self.bits_per_packet
 
         # declare the intervals
         # First interval: [0, src_port_interval_borders[0])
@@ -621,10 +587,10 @@ class MyCovertChannel(CovertChannelBase):
         # last interval: [src_port_interval_borders[n-1], 65535]
 
         # apply the random seed
-        random.seed(random_seed)
+        random.seed(self.random_seed)
 
         # define the intervals values (there has to be n+1 borders for n intervals)
-        if randomize_borders: # if the borders are randomized
+        if self.randomize_borders: # if the borders are randomized
             # sample non repeating random numbers
             src_port_interval_borders = random.sample(range(1, 65536), number_of_intervals - 1)
 
@@ -648,14 +614,14 @@ class MyCovertChannel(CovertChannelBase):
         interval_order_normal = range(number_of_intervals)
 
         # if the interval order needs to be randomized
-        if randomize_interval_order:
+        if self.randomize_interval_order:
             # shuffle the interval order to complicate encryption further
             interval_order_randomized = random.sample(interval_order_normal, number_of_intervals)
 
 
-        if verbose >= 3:
+        if self.verbose >= 3:
             print(f"Number of intervals: {number_of_intervals}")
-            if randomize_interval_order:
+            if self.randomize_interval_order:
                 print(f"Interval order: \n{interval_order_randomized}\n")
             print(f"Interval borders: \n{src_port_interval_borders}\n")
 
@@ -667,44 +633,44 @@ class MyCovertChannel(CovertChannelBase):
             # create a hashmap (key: bits as string, value: interval as a tuple of 2 integers)
             self.bits_to_source_port_value_interval = dict()
 
-            if verbose >= 3:
+            if self.verbose >= 3:
                 print("bits to source port value interval mapping:")
 
             for i in interval_order_normal:
-                # if randomize_interval_order is true, use the randomized interval order
-                if randomize_interval_order:
+                # if self.randomize_interval_order is true, use the randomized interval order
+                if self.randomize_interval_order:
                     border_index = interval_order_randomized[i]
                 else:
                     border_index = i
                 
 
-                if verbose >= 3:
-                    print(f"{i}: {self.convert_integer_to_binary_string(i, bits_per_packet)} ---> [{src_port_interval_borders[border_index]}, {src_port_interval_borders[border_index+1]})")
+                if self.verbose >= 3:
+                    print(f"{i}: {self.convert_integer_to_binary_string(i, self.bits_per_packet)} ---> [{src_port_interval_borders[border_index]}, {src_port_interval_borders[border_index+1]})")
                 
-                self.bits_to_source_port_value_interval[self.convert_integer_to_binary_string(i, bits_per_packet)] = (src_port_interval_borders[border_index], src_port_interval_borders[border_index+1])
+                self.bits_to_source_port_value_interval[self.convert_integer_to_binary_string(i, self.bits_per_packet)] = (src_port_interval_borders[border_index], src_port_interval_borders[border_index+1])
 
 
         if sender_receiver_type == 1 or sender_receiver_type == 2: # receiver mode or both mode
 
-            if cache_type_source_port_value_to_bits == 0: # no caching
+            if self.cache_type_source_port_value_to_bits == 0: # no caching
                 # do nothing. Implementation will be done in the receive function
                 pass
 
-            elif cache_type_source_port_value_to_bits == 1: # binary search
+            elif self.cache_type_source_port_value_to_bits == 1: # binary search
                 # we will use the interval_order_normal (not randomized) for binary search
                 self.nonrandomized_interval_border_values = src_port_interval_borders[:-1]
 
                 # if the interval order is randomized, it is also needed to be stored
-                if randomize_interval_order:
+                if self.randomize_interval_order:
                     self.interval_order_randomized = interval_order_randomized
 
                 # rest of the binary search implementation should be done in the receive function
 
-            elif cache_type_source_port_value_to_bits == 2: # lookup table
+            elif self.cache_type_source_port_value_to_bits == 2: # lookup table
                 # create a lookup table (index: source port value, value: bits as string)
                 self.source_port_value_to_bits = []
 
-                if verbose >= 3:
+                if self.verbose >= 3:
                     print("source port value to bits mapping (samples of every 1000th source port value):")
 
                 unrandomized_interval = 0
@@ -719,19 +685,19 @@ class MyCovertChannel(CovertChannelBase):
                     
                     
                     # if interval order is randomized, find the original interval
-                    if randomize_interval_order:
+                    if self.randomize_interval_order:
                         interval = interval_order_randomized.index(unrandomized_interval)
                     else:
                         interval = unrandomized_interval
 
 
-                    if verbose >= 3:
+                    if self.verbose >= 3:
                         # print every 1000th source port value for verbosing
                         if i % 1000 == 0:
-                            print(f"{i} ---> {self.convert_integer_to_binary_string(interval, bits_per_packet)}")
+                            print(f"{i} ---> {self.convert_integer_to_binary_string(interval, self.bits_per_packet)}")
 
                     # add the source port value and the corresponding bits to the hashmap
-                    self.source_port_value_to_bits.append(self.convert_integer_to_binary_string(interval, bits_per_packet))
+                    self.source_port_value_to_bits.append(self.convert_integer_to_binary_string(interval, self.bits_per_packet))
     
 
 
@@ -769,7 +735,9 @@ class MyCovertChannel(CovertChannelBase):
 
         # return a random value from the interval (including the lower bound, excluding the upper bound)
         return random.randint(current_interval[0], current_interval[1]-1)
-    
+
+
+
     def get_decrypted_message_from_encrypted_source_port(
         self,
         src_port : int

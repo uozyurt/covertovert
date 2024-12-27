@@ -2,34 +2,31 @@
   "covert_channel_code": "CSC-PSV-UDP-SP",
   "send": {
     "parameters": {
-      "bits_per_packet"                                    : 16,
-      "integer_bit_size_to_inform_packet_count"            : 32,
+      "bits_per_packet"                                    : 15,
       "randomize_borders"                                  : "True",
       "randomize_interval_order"                           : "True",
       "use_additional_dynamic_shifting"                    : "True",
       "dst_port"                                           : 42424,
       "random_seed"                                        : 42,
       "verbose"                                            : 1,
-      "log_file_name"                                      : "Example_UDPTimingInterarrivalChannelSender.log",
+      "log_file_name"                                      : "UDP_SourcePortCovertChannelSender.log",
       "store_packets_prior_to_sending"                     : "True",
-      "sleep_between_packets"                              : 0.000001,
-      "sleep_between_packet_number_info_and_actual_message": 0.05,
-      "max_length"                                         : 16,
-      "min_length"                                         : 16,
+      "sleep_between_packets"                              : 0.0001,
+      "max_length"                                         : 128,
+      "min_length"                                         : 128,
       "receiver_ip_address"                                : "172.18.0.3"
     }
   },
   "receive": {
     "parameters": {
-      "bits_per_packet"                        : 16,
-      "integer_bit_size_to_inform_packet_count": 32,
+      "bits_per_packet"                        : 15,
       "randomize_borders"                      : "True",
       "randomize_interval_order"               : "True",
       "use_additional_dynamic_shifting"        : "True",
       "dst_port"                               : 42424,
       "random_seed"                            : 42,
-      "verbose"                                : 1,
-      "log_file_name"                          : "Example_UDPTimingInterarrivalChannelReceiver.log",
+      "verbose"                                : 2,
+      "log_file_name"                          : "UDP_SourcePortCovertChannelReceiver.log",
       "cache_type_source_port_value_to_bits"   : 1
     }
   }
