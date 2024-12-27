@@ -2,7 +2,6 @@ from CovertChannelBase import CovertChannelBase
 import scapy
 import random
 import time
-import math
 import threading
 
 class MyCovertChannel(CovertChannelBase):
@@ -231,7 +230,7 @@ class MyCovertChannel(CovertChannelBase):
 
             seconds_passed = (timer_end_all_packets - timer_start_all_packets)
 
-            print(f"Total time to send all packets: {seconds_passed} seconds")
+            print(f"Total time: {seconds_passed} seconds used to send {len(binary_message_padded)} bits")
 
             # calculate average bits per second
             average_bits_per_second = len(binary_message_padded) / seconds_passed
@@ -542,10 +541,9 @@ class MyCovertChannel(CovertChannelBase):
                 # avoid busy-wait
                 time.sleep(0.01)
 
-                
 
-        
-        
+
+
 
     def convert_integer_to_binary_string(
         self,
