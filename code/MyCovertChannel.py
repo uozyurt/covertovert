@@ -55,7 +55,7 @@ class MyCovertChannel(CovertChannelBase):
         - Explanation                                    : If True, the order of the intervals is randomized. If False, the order is kept as it is (form 0 to n-1).
 
         - use_additional_dynamic_shifting (str) (default="True"): whether to use additional dynamic shifting
-        - Explanation                                           : If True, then messages shifted to right circularly by (self.packet_counter*3 + self.packet_counter**2//3) % (self.bits_per_packet - 1) + 1 bits before encoding to source port values. If False, no shifting is applied.
+        - Explanation                                           : If True, then messages shifted to right circularly by (self.packet_counter*3 + self.packet_counter**2//3) % (self.bits_per_packet - 1) + 1 bits before encoding to source port values. If False, no shifting is applied. Turned off automatically when bits_per_packet is 1.
 
         - random_seed (int) (default=42): the random seed to use for randomizing the intervals
         - Explanation                   : The random seed to use for randomizing the borders of the intervals and the interval order.
@@ -122,6 +122,10 @@ class MyCovertChannel(CovertChannelBase):
         randomize_interval_order        = randomize_interval_order        == "True"
         store_packets_prior_to_sending  = store_packets_prior_to_sending  == "True"
         use_additional_dynamic_shifting = use_additional_dynamic_shifting == "True"
+
+        # turn off additional dynamic shifting if bits_per_packet is 1
+        if bits_per_packet == 1:
+            use_additional_dynamic_shifting = False
 
         # set use_additional_dynamic_shifting and bits_per_packet as class variables
         self.use_additional_dynamic_shifting = use_additional_dynamic_shifting
@@ -230,7 +234,7 @@ class MyCovertChannel(CovertChannelBase):
 
             seconds_passed = (timer_end_all_packets - timer_start_all_packets)
 
-            print(f"Total time: {seconds_passed} seconds used to send {len(binary_message_padded)} bits")
+            print(f"Total time: {seconds_passed} seconds used to send {len(binary_message)} bits")
 
             # calculate average bits per second
             average_bits_per_second = len(binary_message_padded) / seconds_passed
@@ -277,7 +281,7 @@ class MyCovertChannel(CovertChannelBase):
         - Explanation                                    : If True, the order of the intervals is randomized. If False, the order is kept as it is (form 0 to n-1).
 
         - use_additional_dynamic_shifting (str) (default="True"): whether to reverse the additional dynamic shifting
-        - Explanation                                           : If True, then messages left to right circularly by (self.packet_counter*3 + self.packet_counter**2//3) % (self.bits_per_packet - 1) + 1 bits after decoding from source port values. If False, no shifting is needs to be reversed.
+        - Explanation                                           : If True, then messages left to right circularly by (self.packet_counter*3 + self.packet_counter**2//3) % (self.bits_per_packet - 1) + 1 bits after decoding from source port values. If False, no shifting is needs to be reversed.  Turned off automatically when bits_per_packet is 1.
 
         -  cache_type_source_port_value_to_bits (int) (default=1): the data structure to use for caching the source port value to bits mapping
         -  Explanation                                           : The data structure to use for caching the source port value to bits mapping.
@@ -325,6 +329,10 @@ class MyCovertChannel(CovertChannelBase):
         randomize_borders               = randomize_borders               == "True"
         randomize_interval_order        = randomize_interval_order        == "True"
         use_additional_dynamic_shifting = use_additional_dynamic_shifting == "True"
+
+        # turn off additional dynamic shifting if bits_per_packet is 1
+        if bits_per_packet == 1:
+            use_additional_dynamic_shifting = False
 
 
         # set the class variables
