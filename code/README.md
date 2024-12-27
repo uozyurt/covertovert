@@ -127,3 +127,70 @@ $((packet\_index*3 + packet\_index^2//3) \% (bits\_per\_packet - 1)) + 1$
 Sender parses the binary message to n bit chunks, encodes them to the source port field values optionally and suggestedly by using techniques mentioned above, and sends them to the receiver. 
 
 Receiver sniffs UDP packet with the given destination port, decodes the source port field values to the binary message, inverts the techniques used in the sender, and process the binary message to characters. After receiving the "." character, receiver stops the sniffing and logs the message.
+
+
+## Covert Channel Capacity
+
+Covert channel capacity in bits per second is roughlt linearly correlated with bits sent per packet. Thus, I provided the values seperately, which are obtained with my own laptop (using i7-11800h cpu, 32gm 3200mhz ram).
+
+
+send parameters:<br>
+    "bits_per_packet"                                    : variable from 1 to 16<br>
+    "randomize_borders"                                  : "True"<br>
+    "randomize_interval_order"                           : "True"<br>
+    "use_additional_dynamic_shifting"                    : "True"<br>
+    "dst_port"                                           : 42424<br>
+    "random_seed"                                        : 42<br>
+    "verbose"                                            : 0<br>
+    "log_file_name"                                      : "UDP_SourcePortCovertChannelSender.log"<br>
+    "sleep_between_packets"                              : 0.00001<br>
+    "store_packets_prior_to_sending"                     : "False"<br>
+    "max_length"                                         : 16<br>
+    "min_length"                                         : 16<br>
+    "receiver_ip_address"                                : "172.18.0.3"<br>
+
+receive parameters:<br>
+    "bits_per_packet"                        : variable from 1 to 16<br>
+    "randomize_borders"                      : "True"<br>
+    "randomize_interval_order"               : "True"<br>
+    "use_additional_dynamic_shifting"        : "True"<br>
+    "dst_port"                               : 42424<br>
+    "random_seed"                            : 42<br>
+    "verbose"                                : 0<br>
+    "log_file_name"                          : "UDP_SourcePortCovertChannelReceiver.log"<br>
+    "cache_type_source_port_value_to_bits"   : 1<br>
+
+The results are as follows mean(%95 confidence margin) bits per second from 10 runs each:
+
+16 bits per packet: 302.4 (±11.95)
+
+15 bits per packet: 284.5 (±11.32)
+
+14 bits per packet: 266.1 (±15.45)
+
+13 bits per packet: 231.9 (±10.32)
+
+12 bits per packet: 216.5 (±16.07)
+
+11 bits per packet: 203.2 (±9.57)
+
+10 bits per packet: 184.3 (±6.70)
+
+9 bits per packet:  162.4 (±7.52)
+
+8 bits per packet:  150.6 (±8.41)
+
+7 bits per packet:  130.1 (±7.38)
+
+6 bits per packet:  113.7 (±4.06)
+
+5 bits per packet:  93.3 (±3.98)
+
+4 bits per packet:  77.3 (±1.92)
+
+3 bits per packet:  57.1 (±2.06)
+
+2 bits per packet:  38.3 (±2.22)
+
+1 bits per packet:  20.9 (±1.86)
+
