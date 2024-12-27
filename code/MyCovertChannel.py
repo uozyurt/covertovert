@@ -33,53 +33,52 @@ class MyCovertChannel(CovertChannelBase):
         Sends the message to the receiver. The message is encoded in the source port values of the UDP packets.
 
         Parameters:
-        - max_length (int): the maximum length of the message to send
-        - Explanation     : The maximum length of the randomly generated message to send.
+        * max_length (int): the maximum length of the message to send
+        * Explanation     : The maximum length of the randomly generated message to send.
 
-        - min_length (int): the minimum length of the message to send
-        - Explanation     : The minimum length of the randomly generated message to send.
+        * min_length (int): the minimum length of the message to send
+        * Explanation     : The minimum length of the randomly generated message to send.
 
-        -  bits_per_packet (int): the number of bits to encode in a single packet
-        -  Explanation          : The number of bits to encode in a single packet. Larger values increase the capacity of the covert channel, but tightens the intervals.
-        -- restrictions         : 1 <= bits_per_packet <= 16
+        *  bits_per_packet (int): the number of bits to encode in a single packet
+        *  Explanation          : The number of bits to encode in a single packet. Larger values increase the capacity of the covert channel, but tightens the intervals.
+        * restrictions         : 1 <= bits_per_packet <= 16
 
-        -  sleep_between_packets (float) (default=0.000001): the time to sleep between sending each packet
-        -  Explanation                                     : The time to sleep between sending each packet. It is used to separate the packets in time.
-        -- warning                                         : too low values may cause packet loss
+        *  sleep_between_packets (float) (default=0.000001): the time to sleep between sending each packet
+        *  Explanation                                     : The time to sleep between sending each packet. It is used to separate the packets in time.
+        * warning                                         : too low values may cause packet loss
 
+        * randomize_borders (str) (default="True"): whether to randomize the borders of the intervals
+        * Explanation                             : If True, the border values of the intervals are randomized. If False, the borders are uniformly distributed.
 
-        - randomize_borders (str) (default="True"): whether to randomize the borders of the intervals
-        - Explanation                             : If True, the border values of the intervals are randomized. If False, the borders are uniformly distributed.
+        * randomize_interval_order (str) (default="True"): whether to randomize the order of the intervals
+        * Explanation                                    : If True, the order of the intervals is randomized. If False, the order is kept as it is (form 0 to n*1).
 
-        - randomize_interval_order (str) (default="True"): whether to randomize the order of the intervals
-        - Explanation                                    : If True, the order of the intervals is randomized. If False, the order is kept as it is (form 0 to n-1).
+        * use_additional_dynamic_shifting (str) (default="True"): whether to use additional dynamic shifting
+        * Explanation                                           : If True, then messages shifted to right circularly by (self.packet_counter*3 + self.packet_counter**2//3) % (self.bits_per_packet * 1) + 1 bits before encoding to source port values. If False, no shifting is applied. Turned off automatically when bits_per_packet is 1.
 
-        - use_additional_dynamic_shifting (str) (default="True"): whether to use additional dynamic shifting
-        - Explanation                                           : If True, then messages shifted to right circularly by (self.packet_counter*3 + self.packet_counter**2//3) % (self.bits_per_packet - 1) + 1 bits before encoding to source port values. If False, no shifting is applied. Turned off automatically when bits_per_packet is 1.
+        * random_seed (int) (default=42): the random seed to use for randomizing the intervals
+        * Explanation                   : The random seed to use for randomizing the borders of the intervals and the interval order.
 
-        - random_seed (int) (default=42): the random seed to use for randomizing the intervals
-        - Explanation                   : The random seed to use for randomizing the borders of the intervals and the interval order.
+        *  verbose (int) (default=0): the verbosity level
+        * 0                        : no verbosity
+        * 1                        : print initialization time and most important information
+        * 2                        : print all information
+        * 3                        : print all information and the mapping between bits and intervals
 
-        -  verbose (int) (default=0): the verbosity level
-        -- 0                        : no verbosity
-        -- 1                        : print initialization time and most important information
-        -- 2                        : print all information
-        -- 3                        : print all information and the mapping between bits and intervals
+        *  store_packets_prior_to_sending (str) (default="False"): whether to store the packets prior to sending
+        *  Explanation                                           : If True, the packets are stored in a list before sending. If False, the packets are created just before sending.
+        * warning                                               : Storing packets may require additional memory. For large messages, it may consume a lot of memory and cause a wait time before sending the packets.
 
-        -  store_packets_prior_to_sending (str) (default="False"): whether to store the packets prior to sending
-        -  Explanation                                           : If True, the packets are stored in a list before sending. If False, the packets are created just before sending.
-        -- warning                                               : Storing packets may require additional memory. For large messages, it may consume a lot of memory and cause a wait time before sending the packets.
+        * log_file_name (str) (default="Example_UDPTimingInterarrivalChannelSender.log"): the name of the log file to log the sent message
+        * Explanation                                                                   : The log file of the sent message will be stored in this file.
 
-        - log_file_name (str) (default="Example_UDPTimingInterarrivalChannelSender.log"): the name of the log file to log the sent message
-        - Explanation                                                                   : The log file of the sent message will be stored in this file.
+        *  dst_port (int) (default=42424): the destination port to send the packets
+        *  Explanation                   : The destination port to send the packets. (to avoid sniffing wrong packets accidentally)
+        * restrictions                  : 0 <= dst_port <= 65535
 
-        -  dst_port (int) (default=42424): the destination port to send the packets
-        -  Explanation                   : The destination port to send the packets. (to avoid sniffing wrong packets accidentally)
-        -- restrictions                  : 0 <= dst_port <= 65535
-
-        -  receiver_ip_address (str) (default="172.18.0.3"): the IP address of the receiver
-        -  Explanation                                     : The IP address of the receiver to send the packets.
-        -- restrictions                                    : valid IP address
+        *  receiver_ip_address (str) (default="172.18.0.3"): the IP address of the receiver
+        *  Explanation                                     : The IP address of the receiver to send the packets.
+        * restrictions                                    : valid IP address
         """
         if verbose >= 1:
             # start timer for initial time
@@ -270,39 +269,39 @@ class MyCovertChannel(CovertChannelBase):
         Starts the receiver and waits for the sender to send the message. After receiving the message, decodes the message and logs it to a file.
 
         Parameters:
-        -  bits_per_packet (int): the number of bits to encode in a single packet
-        -  Explanation          : The number of bits to encode in a single packet. Larger values increase the capacity of the covert channel, but tightens the intervals.
-        -- restrictions         : 1 <= bits_per_packet <= 16
+        *  bits_per_packet (int): the number of bits to encode in a single packet
+        *  Explanation          : The number of bits to encode in a single packet. Larger values increase the capacity of the covert channel, but tightens the intervals.
+        * restrictions         : 1 <= bits_per_packet <= 16
 
-        - randomize_borders (str) (default="True"): whether to randomize the borders of the intervals
-        - Explanation                             : If True, the border values of the intervals are randomized. If False, the borders are uniformly distributed.
+        * randomize_borders (str) (default="True"): whether to randomize the borders of the intervals
+        * Explanation                             : If True, the border values of the intervals are randomized. If False, the borders are uniformly distributed.
 
-        - randomize_interval_order (str) (default="True"): whether to randomize the order of the intervals
-        - Explanation                                    : If True, the order of the intervals is randomized. If False, the order is kept as it is (form 0 to n-1).
+        * randomize_interval_order (str) (default="True"): whether to randomize the order of the intervals
+        * Explanation                                    : If True, the order of the intervals is randomized. If False, the order is kept as it is (form 0 to n*1).
 
-        - use_additional_dynamic_shifting (str) (default="True"): whether to reverse the additional dynamic shifting
-        - Explanation                                           : If True, then messages left to right circularly by (self.packet_counter*3 + self.packet_counter**2//3) % (self.bits_per_packet - 1) + 1 bits after decoding from source port values. If False, no shifting is needs to be reversed.  Turned off automatically when bits_per_packet is 1.
+        * use_additional_dynamic_shifting (str) (default="True"): whether to reverse the additional dynamic shifting
+        * Explanation                                           : If True, then messages left to right circularly by (self.packet_counter*3 + self.packet_counter**2//3) % (self.bits_per_packet * 1) + 1 bits after decoding from source port values. If False, no shifting is needs to be reversed.  Turned off automatically when bits_per_packet is 1.
 
-        -  cache_type_source_port_value_to_bits (int) (default=1): the data structure to use for caching the source port value to bits mapping
-        -  Explanation                                           : The data structure to use for caching the source port value to bits mapping.
-        -- 1                                                     : binary search with O(log(n)) time complexity in terms of number of intervals. Balances memory and initialization time and search time.
-        -- 2                                                     : lookup table with O(1) time complexity in terms of number of intervals. Fastest search time,       but requires significant memory and initialization time for large number of intervals.
+        *  cache_type_source_port_value_to_bits (int) (default=1): the data structure to use for caching the source port value to bits mapping
+        *  Explanation                                           : The data structure to use for caching the source port value to bits mapping.
+        * 1                                                     : binary search with O(log(n)) time complexity in terms of number of intervals. Balances memory and initialization time and search time.
+        * 2                                                     : lookup table with O(1) time complexity in terms of number of intervals. Fastest search time,       but requires significant memory and initialization time for large number of intervals.
 
-        - random_seed (int) (default=42): the random seed to use for randomizing the intervals
-        - Explanation                   : The random seed to use for randomizing the borders of the intervals and the interval order.
+        * random_seed (int) (default=42): the random seed to use for randomizing the intervals
+        * Explanation                   : The random seed to use for randomizing the borders of the intervals and the interval order.
 
-        -  verbose (int) (default=0): the verbosity level
-        -- 0                        : no verbosity
-        -- 1                        : print initialization time and most important information
-        -- 2                        : print all information
-        -- 3                        : print all information and the mapping between bits and intervals
+        *  verbose (int) (default=0): the verbosity level
+        * 0                        : no verbosity
+        * 1                        : print initialization time and most important information
+        * 2                        : print all information
+        * 3                        : print all information and the mapping between bits and intervals
 
-        - log_file_name (str) (default="Example_UDPTimingInterarrivalChannelReceiver.log"): the name of the log file to log the received message
-        - Explanation                                                                     : The log file of the received message will be stored in this file.
+        * log_file_name (str) (default="Example_UDPTimingInterarrivalChannelReceiver.log"): the name of the log file to log the received message
+        * Explanation                                                                     : The log file of the received message will be stored in this file.
 
-        -  dst_port (int) (default=42424): the destination port to listen for the packets
-        -  Explanation                   : The destination port to listen for the packets. (to avoid sniffing wrong packets accidentally)
-        -- restrictions                  : 0 <= dst_port <= 65535
+        *  dst_port (int) (default=42424): the destination port to listen for the packets
+        *  Explanation                   : The destination port to listen for the packets. (to avoid sniffing wrong packets accidentally)
+        * restrictions                  : 0 <= dst_port <= 65535
         """
         
         if verbose >= 1:
@@ -573,11 +572,11 @@ class MyCovertChannel(CovertChannelBase):
         Initialize the intervals the mapping function between bits to encode and source port value intervals
 
         Parameters:
-        -  sender_receiver_type (int): the type of the sender or receiver
-        -  Explanation               : Initializes the intervals for the sender, receiver or both
-        -- 0                         : sender
-        -- 1                         : receiver
-        -- 2                         : both
+        *  sender_receiver_type (int): the type of the sender or receiver
+        *  Explanation               : Initializes the intervals for the sender, receiver or both
+        * 0                         : sender
+        * 1                         : receiver
+        * 2                         : both
         """
 
 
@@ -651,7 +650,7 @@ class MyCovertChannel(CovertChannelBase):
                 
 
                 if self.verbose >= 3:
-                    print(f"{i}: {self.convert_integer_to_binary_string(i, self.bits_per_packet)} ---> [{src_port_interval_borders[border_index]}, {src_port_interval_borders[border_index+1]})")
+                    print(f"{i}: {self.convert_integer_to_binary_string(i, self.bits_per_packet)} --> [{src_port_interval_borders[border_index]}, {src_port_interval_borders[border_index+1]})")
                 
                 self.bits_to_source_port_value_interval[self.convert_integer_to_binary_string(i, self.bits_per_packet)] = (src_port_interval_borders[border_index], src_port_interval_borders[border_index+1])
 
@@ -700,7 +699,7 @@ class MyCovertChannel(CovertChannelBase):
                     if self.verbose >= 3:
                         # print every 1000th source port value for verbosing
                         if i % 1000 == 0:
-                            print(f"{i} ---> {self.convert_integer_to_binary_string(interval, self.bits_per_packet)}")
+                            print(f"{i} --> {self.convert_integer_to_binary_string(interval, self.bits_per_packet)}")
 
                     # add the source port value and the corresponding bits to the hashmap
                     self.source_port_value_to_bits.append(self.convert_integer_to_binary_string(interval, self.bits_per_packet))
@@ -715,13 +714,13 @@ class MyCovertChannel(CovertChannelBase):
         Get the encrypted source port value from the bits
 
         Parameters:
-        -  bits (str)                     : the bit to encrypt
-        -- examples for 5 bits per packet: "00000", "00001", "00010", "00011", ..., "11111"
+        *  bits (str)                     : the bit to encrypt
+        * examples for 5 bits per packet: "00000", "00001", "00010", "00011", ..., "11111"
 
         Returns:
-        - int: the encrypted source port value
+        * int: the encrypted source port value
 
-        --- WARNING: this function has to be called after the intervals are initialized with the sender mode ---
+        !!! WARNING: this function has to be called after the intervals are initialized with the sender mode !!!
         """
 
         # if additional dynamic shifting is used, shift the bits to right circularly by (self.packet_counter*3 + self.packet_counter**2//3) % (self.bits_per_packet - 1) + 1 bits
@@ -752,10 +751,10 @@ class MyCovertChannel(CovertChannelBase):
         Get the decrypted message from the encrypted source port value
 
         Parameters:
-        - src_port (int): the source port value to decrypt
-        - Explanation   : The source port value to decrypt
+        * src_port (int): the source port value to decrypt
+        * Explanation   : The source port value to decrypt
 
-        --- WARNING: this function has to be called after the intervals are initialized with the receiver mode ---
+        !!! WARNING: this function has to be called after the intervals are initialized with the receiver mode !!!
         """
 
         if self.cache_type_source_port_value_to_bits == 1: # binary search
