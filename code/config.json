@@ -14,8 +14,8 @@
       "store_packets_prior_to_sending"                     : "True",
       "sleep_between_packets"                              : 0.000001,
       "sleep_between_packet_number_info_and_actual_message": 0.05,
-      "max_length"                                         : 56,
-      "min_length"                                         : 23,
+      "max_length"                                         : 16,
+      "min_length"                                         : 16,
       "receiver_ip_address"                                : "172.18.0.3"
     }
   },
