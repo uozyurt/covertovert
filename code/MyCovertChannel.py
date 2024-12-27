@@ -240,7 +240,7 @@ class MyCovertChannel(CovertChannelBase):
                 if verbose >= 2:
                     print(f"Sent packet number with source port: {current_packet_to_send[scapy.all.UDP].sport}")
 
-                #time.sleep(sleep_between_packets)
+                time.sleep(sleep_between_packets)
 
 
             # sleep for a while to separate the packets
@@ -254,7 +254,7 @@ class MyCovertChannel(CovertChannelBase):
                 if verbose >= 2:
                     print(f"Sent with source port: {current_packet_to_send[scapy.all.UDP].sport}")
 
-                #time.sleep(sleep_between_packets)
+                time.sleep(sleep_between_packets)
         else:
             # send packets just after creating them
 
